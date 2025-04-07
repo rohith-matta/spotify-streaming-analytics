@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Streaming Analytics Dashboard</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #121212; /* Dark background */
+      color: #ffffff; /* White text */
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1DB954; /* Spotify green */
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    h1 {
+      text-align: center;
+      font-size: 36px;
+      margin: 20px 0;
+      color: #1DB954;
+    }
+    footer {
+      background: #333;
+      color: white;
+      text-align: center;
+      padding: 10px 0;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+    }
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 20px auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+    }
+    .chart-container {
+      background: #1e1e1e; /* Darker background for charts */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      margin: 20px;
+      padding: 20px;
+      flex: 1 1 45%;
+      min-width: 400px;
+      transition: transform 0.3s;
+    }
+    .chart-container:hover {
+      transform: scale(1.02);
+    }
+    .chart-title {
+      text-align: center;
+      font-size: 20px;
+      color: #1DB954;
+      margin-bottom: 15px;
+    }
+    svg {
+      width: 100%;
+      height: 400px;
+    }
+    .axis path,
+    .axis line {
+      fill: none;
+      stroke: #ccc;
+      shape-rendering: crispEdges;
+    }
+    .bar {
+      fill: #1DB954; /* Spotify green */
+      transition: fill 0.3s;
+    }
+    .bar:hover {
+      fill: #ff5722;
+    }
+    .x-axis text {
+      font-size: 12px;
+      fill: #ffffff;
+    }
+    .y-axis text {
+      font-size: 12px;
+      fill: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <header>Spotify Streaming Analytics Dashboard</header>
+  <h1>Live Streaming Insights</h1>
+  <div class="dashboard-container">
+    <div id="top-songs" class="chart-container">
+      <div class="chart-title">Top Played Songs</div>
+      <svg></svg>
+    </div>
+    <div id="top-artists" class="chart-container">
+      <div class="chart-title">Top Played Artists</div>
+      <svg></svg>
+    </div>
+  </div>
+  <footer>© 2025 Spotify Analytics. All rights reserved.</footer>
+  <script>
+    // Function to draw a bar chart with D3.js
+    function drawBarChart(data, containerId, xLabel) {
+      const svg = d3.select(containerId + " svg");
+      svg.selectAll("*").remove(); // Clear any previous chart content
+      const margin = { top: 20, right: 20, bottom: 80, left: 60 },
+            width = +svg.node().getBoundingClientRect().width - margin.left - margin.right,
+            height = +svg.node().getBoundingClientRect().height - margin.top - margin.bottom;
+      
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      
+      // Define scales
+      const x = d3.scaleBand()
+                  .domain(data.map(d => d.name))
+                  .range([0, width])
+                  .padding(0.1);
+      
+      const y = d3.scaleLinear()
+                  .domain([0, d3.max(data, d => d.count)]).nice()
+                  .range([height, 0]);
+      
+      // X Axis
+      g.append("g")
+       .attr("class", "x-axis")
+       .attr("transform", `translate(0, ${height})`)
+       .call(d3.axisBottom(x))
+       .selectAll("text")
+       .attr("transform", "rotate(-45)")
+       .style("text-anchor", "end")
+       .style("fill", "#ffffff") // White text for dark background
+       .style("font-size", "12px")
+       .text(function(d) {
+          return d.length > 15 ? d.substring(0, 15) + "..." : d; // Truncate long names
+       });
+      
+      // Y Axis
+      g.append("g")
+       .attr("class", "y-axis")
+       .call(d3.axisLeft(y))
+       .selectAll("text")
+       .style("fill", "#ffffff") // White text for dark background
+       .style("font-size", "12px");
+      
+      // Bars
+      g.selectAll(".bar")
+       .data(data)
+       .enter().append("rect")
+       .attr("class", "bar")
+       .attr("x", d => x(d.name))
+       .attr("y", d => y(d.count))
+       .attr("width", x.bandwidth())
+       .attr("height", d => height - y(d.count));
+    }
+    
+    // Function to fetch and update data periodically
+    function fetchAndUpdateData() {
+      // Fetch data for Top Played Songs
+      fetch("http://localhost:5000/api/top-songs")
+        .then(response => response.json())
+        .then(data => {
+           drawBarChart(data, "#top-songs", "Song Name");
+        })
+        .catch(error => {
+           console.error("Error fetching top songs data:", error);
+        });
+      
+      // Fetch data for Top Played Artists
+      fetch("http://localhost:5000/api/top-artists")
+        .then(response => response.json())
+        .then(data => {
+           drawBarChart(data, "#top-artists", "Artist Name");
+        })
+        .catch(error => {
+           console.error("Error fetching top artists data:", error);
+        });
+    }
+
+    // Initial fetch and update every 10 seconds
+    fetchAndUpdateData();
+    setInterval(fetchAndUpdateData, 10000); // Update every 10 seconds
+  </script>
+</body>
+</html>
