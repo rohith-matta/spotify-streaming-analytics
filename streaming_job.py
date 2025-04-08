@@ -42,6 +42,7 @@ kafka_df = spark.readStream \
     .option("subscribe", "spotify_streams") \
     .option("startingOffsets", "earliest") \
     .option("maxOffsetsPerTrigger", "100") \
+    .option("failOnDataLoss", "false") \
     .load()
 
 # Parse the JSON messages

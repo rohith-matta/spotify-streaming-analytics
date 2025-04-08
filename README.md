@@ -2,6 +2,8 @@
 
 This project is a real-time streaming analytics system for Spotify data. It processes streaming data, aggregates insights, and provides a dashboard for visualizing top songs and artists.
 
+---
+
 ## Project Structure
 
 ```
@@ -11,8 +13,10 @@ This project is a real-time streaming analytics system for Spotify data. It proc
 ├── data_ingestion_script.py   # Kafka producer for streaming Spotify data
 ├── spotify_history.csv        # Sample Spotify streaming history data
 ├── streaming_job.py           # PySpark job for real-time data processing
-└── readme.md                  # Project documentation
+└── README.md                  # Project documentation
 ```
+
+---
 
 ## Components
 
@@ -29,14 +33,16 @@ This project is a real-time streaming analytics system for Spotify data. It proc
 ### 3. **API**
 - **Script**: `api.py`
 - **Description**: Provides RESTful endpoints to fetch aggregated data from MongoDB.
-    - `/api/top-songs`: Returns top played songs.
-    - `/api/top-artists`: Returns top played artists.
+     - `/api/top-songs`: Returns top played songs.
+     - `/api/top-artists`: Returns top played artists.
 - **Technology**: Flask, MongoDB
 
 ### 4. **Dashboard**
 - **File**: `dashboard.html`
 - **Description**: A web-based dashboard that visualizes top songs and artists using D3.js.
 - **Technology**: HTML, CSS, JavaScript, D3.js
+
+---
 
 ## Setup Instructions
 
@@ -45,195 +51,153 @@ This project is a real-time streaming analytics system for Spotify data. It proc
 - Apache Kafka
 - Apache Spark
 - MongoDB
-- Node.js (for serving the dashboard, optional)
+- Node.js (optional, for serving the dashboard)
 
 ### Steps
 
 1. **Install Dependencies**
-     ```bash
-     pip install flask flask-cors pymongo kafka-python pandas pyspark
-     ```
+   ```bash
+   pip install flask flask-cors pymongo kafka-python pandas pyspark
+   ```
 
-2. **Start Kafka and MongoDB**
-     - Start Kafka broker and create a topic named `spotify_streams`.
-     - Start MongoDB server.
+2. **Start Required Services**
+   - Start Zookeeper and Kafka broker.
+   - Start MongoDB server.
 
-3. **Run Data Ingestion**
-     ```bash
-     python data_ingestion_script.py
-     ```
+3. **Run the Project**
+   - **Data Ingestion**: `python data_ingestion_script.py`
+   - **Streaming Job**: `spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 streaming_job.py`
+   - **API**: `python api.py`
+   - **Dashboard**: Open `dashboard.html` in a browser.
 
-4. **Run Streaming Job**
-     ```bash
-     python streaming_job.py
-     ```
+---
 
-5. **Start API**
-     ```bash
-     python api.py
-     ```
+## Detailed Steps
 
-6. **Open Dashboard**
-     - Open `dashboard.html` in a browser to view real-time analytics.
+### 1. Start Zookeeper and Kafka
+Start Zookeeper:
+```bash
+zookeeper-server-start.sh config/zookeeper.properties
+```
 
-## File Details
+Start Kafka:
+```bash
+kafka-server-start.sh config/server.properties
+```
 
-### `spotify_history.csv`
-- Sample Spotify streaming history data used for testing.
+Create the Kafka topic:
+```bash
+kafka-topics.sh --create --topic spotify_streams --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1
+```
 
-### `data_ingestion_script.py`
-- Streams data from the CSV file to Kafka.
+### 2. Start MongoDB
+Start the MongoDB service:
+```bash
+mongod --dbpath /path/to/your/mongodb/data
+```
 
-### `streaming_job.py`
-- Processes Kafka streams and writes aggregated results to MongoDB.
+### Create the Required Database and Collections
+Once MongoDB is running, create the database and collections used in the `streaming_job.py` script. Open the MongoDB shell:
+```bash
+mongosh
+```
 
-### `api.py`
-- Serves aggregated data via RESTful endpoints.
+Run the following commands to create the database and collections:
+```javascript
+use music_streaming;
+db.createCollection("aggregated_results_songs");
+db.createCollection("aggregated_results_artists");
+```
 
-### `dashboard.html`
-- Visualizes the analytics using D3.js.
+Verify the collections:
+```javascript
+show collections;
+```
+
+### 3. Run Data Ingestion
+Simulate real-time data streaming:
+```bash
+python data_ingestion_script.py
+```
+
+### 4. Run the Spark Streaming Job
+#### Start HDFS
+Before running the Spark Streaming job, ensure that HDFS is running. Start the NameNode and DataNode services:
+
+Start the NameNode:
+```bash
+hadoop-daemon.sh start namenode
+```
+
+Start the DataNode:
+```bash
+hadoop-daemon.sh start datanode
+```
+
+Verify that HDFS is running:
+```bash
+hdfs dfsadmin -report
+```
+
+#### Create Required Directories in HDFS
+Create the directories in HDFS that are used for checkpointing in the Spark Streaming job:
+
+```bash
+hdfs dfs -mkdir -p /user/hdoop/checkpoints/spotify_streaming_songs
+hdfs dfs -mkdir -p /user/hdoop/checkpoints/spotify_streaming_artists
+```
+
+Verify the directories:
+```bash
+hdfs dfs -ls /user/hdoop/checkpoints
+```
+
+#### Local Mode
+Run the Spark Streaming job in local mode:
+```bash
+spark-submit \
+     --master local[*] \
+     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
+     streaming_job.py
+```
+
+#### Cluster Mode
+Run the Spark Streaming job in cluster mode:
+```bash
+spark-submit \
+     --master yarn \
+     --deploy-mode cluster \
+     --num-executors 1 \
+     --executor-memory 1G \
+     --executor-cores 1 \
+     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
+     streaming_job.py
+```
+
+### 5. Start the Flask API
+Serve the aggregated data:
+```bash
+python api.py
+```
+
+### 6. Start the Dashboard
+Serve the dashboard locally:
+```bash
+python -m http.server 8000
+```
+Open in a browser:
+```
+http://localhost:8000/dashboard.html
+```
+
+---
 
 ## Example Usage
 
 - **Top Songs API**: `http://localhost:5000/api/top-songs`
 - **Top Artists API**: `http://localhost:5000/api/top-artists`
 
-## Future Enhancements
-- Add user authentication for the dashboard.
-- Support additional analytics (e.g., most skipped songs).
-- Deploy on a distributed cluster for scalability.
-
-## License
-This project is licensed under the MIT License.
-## Detailed Steps
-
-### 1. Start Zookeeper
-Start the Zookeeper service, which is required for Kafka to function:
-```bash
-zookeeper-server-start.sh config/zookeeper.properties
-```
-
-### 2. Start Kafka
-Start the Kafka broker:
-```bash
-kafka-server-start.sh config/server.properties
-```
-
-### 3. Create the Kafka Topic
-Create the `spotify_streams` topic for streaming data:
-```bash
-kafka-topics.sh --create --topic spotify_streams --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1
-```
-
-### 4. Start MongoDB
-Start the MongoDB service:
-```bash
-mongod --dbpath /path/to/your/mongodb/data
-```
-
-### 5. Run the Data Ingestion Script
-Simulate real-time data streaming by running the Kafka producer:
-```bash
-python data_ingestion_script.py
-```
-
-### 6. Run the Spark Streaming Job
-Process the streaming data and store aggregated results in MongoDB:
-### Running on Hadoop and Spark
-
-#### 1. Start Hadoop Services
-Before running the Spark job, ensure that Hadoop services are up and running:
-```bash
-### 1. Start HDFS Services
-Before running the Spark job, ensure that HDFS services are up and running. Start the NameNode and DataNode services:
-```bash
-start-dfs.sh
-```
-
-Verify that the HDFS services are running:
-```bash
-jps
-```
-You should see `NameNode` and `DataNode` in the output.
-
-### 2. Create HDFS Directories
-Create necessary directories in HDFS for storing Spark job outputs and checkpoints:
-```bash
-hdfs dfs -mkdir -p /user/hadoop/checkpoints
-hdfs dfs -mkdir -p /user/hadoop/output
-```
-
-Verify the directories:
-```bash
-hdfs dfs -ls /user/hadoop
-```
-
-Verify the HDFS setup:
-```bash
-hdfs dfs -ls /user/hadoop/checkpoints
-```
-
-#### 3. Run the Spark Job
-
-##### Local Mode
-Run the Spark job locally for testing:
-```bash
-spark-submit \
-    --master local[*] \
-    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
-    streaming_job.py
-```
-
-##### Cluster Mode
-Run the Spark job on a Hadoop YARN cluster for production:
-```bash
-spark-submit \
-    --master yarn \
-    --deploy-mode cluster \
-    --num-executors 1 \
-    --executor-memory 1G \
-    --executor-cores 1 \
-    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
-    streaming_job.py
-```
-
-#### 4. Monitor the Job
-Use the Hadoop ResourceManager UI to monitor the job:
-```
-http://<resource-manager-host>:8088
-```
-
-### 7. Start the Flask API
-Serve the aggregated data through the REST API:
-```bash
-python api.py
-```
-
-### 8. Start the Dashboard
-Start a local HTTP server to serve the dashboard:
-```bash
-python -m http.server 8000
-```
-Open the dashboard in your browser:
-```
-http://localhost:8000/dashboard.html
-```
-
-## How It Works
-
-### Data Ingestion
-The `data_ingestion_script.py` reads data from `spotify_history.csv` and streams it to the Kafka topic `spotify_streams`.
-
-### Stream Processing
-The `streaming_job.py` Spark job reads data from Kafka, processes it, and writes aggregated results (e.g., top songs and artists) to MongoDB.
-
-### API
-The `api.py` Flask application provides REST endpoints to fetch aggregated data:
-- `/api/top-songs`: Returns the top played songs.
-- `/api/top-artists`: Returns the top played artists.
-
-### Dashboard
-The `dashboard.html` visualizes the data using D3.js and updates every 10 seconds by fetching data from the Flask API.
+---
 
 ## Troubleshooting
 
